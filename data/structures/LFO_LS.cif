@@ -1,0 +1,59 @@
+# CIF file created by FINDSYM, version 7.1.3
+
+data_findsym-output
+_audit_creation_method FINDSYM
+
+_cell_length_a     6.0301647000
+_cell_length_b     6.0301647000
+_cell_length_c     11.7414290000
+_cell_angle_alpha  90.0000000000
+_cell_angle_beta   90.0000000000
+_cell_angle_gamma  120.0000000000
+_cell_volume       369.7514928268
+
+_symmetry_space_group_name_H-M "P 63 c m"
+_symmetry_Int_Tables_number 185
+_space_group.reference_setting '185:P 6c -2'
+_space_group.transform_Pp_abc a,b,c;0,0,0
+
+loop_
+_space_group_symop_id
+_space_group_symop_operation_xyz
+1 x,y,z
+2 x-y,x,z+1/2
+3 -y,x-y,z
+4 -x,-y,z+1/2
+5 -x+y,-x,z
+6 y,-x+y,z+1/2
+7 -x+y,y,z+1/2
+8 -x,-x+y,z
+9 -y,-x,z+1/2
+10 x-y,-y,z
+11 x,x-y,z+1/2
+12 y,x,z
+
+loop_
+_atom_type_symbol
+Lu    
+Fe    
+O     
+
+loop_
+_atom_site_label
+_atom_site_type_symbol
+_atom_site_symmetry_multiplicity
+_atom_site_Wyckoff_symbol
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+_atom_site_occupancy
+_atom_site_fract_symmform
+Lu1 Lu   2 a  0.0000000000  0.0000000000  0.2234730000  1.0000000000 0,0,Dz  
+Lu2 Lu   4 b  0.3333333333  0.6666666667  0.7668070000  1.0000000000 0,0,Dz  
+Fe1 Fe   6 c  0.6660230000  0.0000000000  0.4988210000  1.0000000000 Dx,0,Dz 
+O1  O    6 c  0.6952660000  0.0000000000  0.3318720000  1.0000000000 Dx,0,Dz 
+O2  O    6 c  0.3618640000  0.0000000000  0.1638940000  1.0000000000 Dx,0,Dz 
+O3  O    2 a  0.0000000000  0.0000000000  0.0249950000  1.0000000000 0,0,Dz  
+O4  O    4 b  0.3333333333  0.6666666667 -0.0234290000  1.0000000000 0,0,Dz  
+
+# end of cif

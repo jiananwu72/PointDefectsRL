@@ -1,0 +1,5 @@
+# Ignore all images; too big for GitHub
+data/images/
+
+# Drafts playbook
+script.ipynb
