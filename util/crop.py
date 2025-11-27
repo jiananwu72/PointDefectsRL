@@ -3,8 +3,15 @@ import scipy
 import matplotlib.pyplot as plt
 import atomap.api as am
 
-from .crop_classification import CropClassification
-from .patch import Patch
+import sys
+from pathlib import Path
+script_path = Path(__file__).resolve()
+project_root = script_path.parent.parent
+if str(project_root) not in sys.path:
+    sys.path.append(str(project_root))
+
+from util.crop_classification import CropClassification
+from util.patch import Patch
 
 class Crop(CropClassification):
 

@@ -1,3 +1,5 @@
+# To see whether the environment is successfully set up
+
 try:
 	import torch
 	print("Pytorch version:", torch.__version__)
