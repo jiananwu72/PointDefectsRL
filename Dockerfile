@@ -2,6 +2,8 @@
 #     docker build --platform linux/amd64 -t jiananwu72/miniconda-cupy:latest .
 # To run the docker image, use jiananwu72/miniconda-cupy:latest.
 
+# In WashU RIS, use: bsub -Is -q general-interactive -a 'docker(jiananwu72/miniconda-cupy)' /bin/bash
+
 # For simulations on a machine with NVIDIA GPU support
 FROM nvidia/cuda:12.4.1-runtime-ubuntu22.04
 

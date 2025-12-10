@@ -1,6 +1,9 @@
 import numpy as np
 import scipy
 import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
+import matplotlib.colors as mcolors
+import matplotlib.cm as cm
 import atomap.api as am
 
 import sys
@@ -61,6 +64,28 @@ class Crop(CropClassification):
         self.grid = None
         self.grid_shape = None
         self.atom_positions = None
+
+    def plot_crop(self, show_original=False):
+        """
+        Plot the cropped ROI.
+
+        Args:
+            show_original: If True, will plot the original image with the ROI rectangle overlaid.
+        """
+        plt.close()
+        fig, ax = plt.subplots(figsize=(10, 10))
+
+        if show_original:
+            ax.imshow(self.signal.data)
+            ax.set_title('Original Image with ROI')
+            rect = plt.Rectangle((self.left, self.start), self.right - self.left, self.end - self.start,
+                                 edgecolor='red', facecolor='none', linewidth=1)
+            ax.add_patch(rect)
+        else:       
+            ax.imshow(self.roi)
+            ax.set_title('Cropped ROI')
+        plt.tight_layout()
+        plt.show()
 
     def get_vertical_peaks(self, get_plot=False, 
                            detect_height=1, min_sep=3, prom_coeff = 0.1):
@@ -192,18 +217,23 @@ class Crop(CropClassification):
         plt.show()
 
 
-    def build_grid_dict(self):
+    def build_grid_dict(self, detect_height=1, detect_width=1, min_sep=3, prom_coeff=0.1):
         """
         Build a 2D dictionary of grid cells bounded by adjacent horizontal/vertical troughs.
         Uses the first through last entries of self.vertical_troughs and self.horizontal_troughs.
         Results stored in self.grid.
+
+        Args:
+            detect_width: The width of the strip to sum over when calculating strengths.
+            min_sep: Minimum separation (in pixels) between peaks/troughs.
+            prom_coeff: Coefficient to determine the prominence threshold for peak detection.
         """
 
-        # Require troughs to be present
-        if not hasattr(self, "vertical_troughs") or self.vertical_troughs is None:
-            raise ValueError("vertical_troughs not set. Run get_vertical_peaks(...).")
-        if not hasattr(self, "horizontal_troughs") or self.horizontal_troughs is None:
-            raise ValueError("horizontal_troughs not set. Run get_horizontal_peaks(...).")
+        # Require peaks and troughs to be present
+        if self.horizontal_peaks is None and self.horizontal_troughs is None:
+            self.get_vertical_peaks(detect_height=detect_height, min_sep=min_sep, prom_coeff=prom_coeff)
+        if self.vertical_peaks is None and self.vertical_troughs is None:
+            self.get_horizontal_peaks(detect_width=detect_width, min_sep=min_sep, prom_coeff=prom_coeff)
 
         W, H = self.signal.data.shape  # (x = width, y = height)
 
@@ -232,38 +262,89 @@ class Crop(CropClassification):
         self.grid = grid
         self.grid_shape = (len(col_edges), len(row_edges))
 
-    def plot_grid_intensities(self, intensity_type = 'mean'):
+
+    def plot_grid_intensities(self, metric = 'mean', cmap = None):
         """
-        Plot a 2D map of grid cell intensities.
+        Plot a 2D map of grid cell intensities over the roi.
 
         Args:
-            intensity_type: 'mean', 'max', or 'sum' to specify which intensity measure to plot.
+            metric: 'mean', 'max', or 'sum' to specify which intensity measure to plot.
         """
 
-        x_len = self.grid_shape[0]
-        y_len = self.grid_shape[1]
+        fig, ax = plt.subplots(figsize=(10, 10))
+        ax.imshow(self.roi)
 
-        # Build 2D array of intensity
-        intensity_map = np.zeros((x_len, y_len))
-        for i in range(x_len):
-            for j in range(y_len):
-                if intensity_type == 'mean':
-                    intensity_map[i, j] = self.grid[i, j].mean_intensity
-                elif intensity_type == 'max':
-                    intensity_map[i, j] = self.grid[i, j].max_intensity
-                elif intensity_type == 'sum':
-                    intensity_map[i, j] = self.grid[i, j].sum_intensity
-                else:
-                    raise ValueError("Invalid intensity_type string")
+        patch_intensities = [self._get_intensity(patch, metric) for patch in self.grid.values()]
+        norm = mcolors.Normalize(vmin=min(patch_intensities), vmax=max(patch_intensities))
+        
+        if cmap is None:
+            cmap = cm.get_cmap('viridis')
 
-        # Plot: y axis is from up to down, so no need to flip
-        plt.figure(figsize=(6, 5))
-        plt.imshow(intensity_map.T, origin='upper', aspect='auto', cmap='viridis')
-        plt.xlabel('i (x, left to right)')
-        plt.ylabel('j (y, up to down)')
-        plt.title('2D Mapping of '+intensity_type+' intensity')
-        plt.colorbar(label='intensity')
+        # above_color = None, below_color = None,
+        # if above_color is None:
+        #     above_color='#FF7F0E'
+        # if below_color is None:
+        #     below_color='#D62728' 
+
+        def _get_edges(patch):
+            col_edges = patch.roi_col_edges
+            row_edges = patch.roi_row_edges
+            x0, x1 = float(col_edges[0]), float(col_edges[1])
+            y0, y1 = float(row_edges[0]), float(row_edges[1])
+            return x0, x1, y0, y1
+
+        def _draw_box(patch, color, fill, z):
+            edges = _get_edges(patch)
+            if edges is None:
+                return
+            x0, x1, y0, y1 = edges
+            wr = x1 - x0
+            hr = y1 - y0
+
+            # Draw box (semi-transparent fill to see the atom)
+            rect = Rectangle((x0, y0), wr, hr, edgecolor=color, fill=fill, linewidth=2, facecolor=color, zorder=z)
+            ax.add_patch(rect)
+
+        for patch in self.grid.values():
+            _draw_box(patch, color=cmap(norm(self._get_intensity(patch, metric))), fill=True, z=1)
+
+        # # Draw ABOVE
+        # for (i, j) in crop.intensity_from_vincinity_outliers_above:
+        #     patch = crop.grid[i, j]
+        #     _draw_box(patch, color=above_color, fill=False, z=3)
+
+        # # Draw BELOW
+        # for (i, j) in crop.intensity_from_vincinity_outliers_below:
+        #     patch = crop.grid[i, j]
+        #     _draw_box(patch, color=below_color, fill=False, z=3)
+
+        # count_above = len(crop.intensity_from_vincinity_outliers_above)
+        # count_below = len(crop.intensity_from_vincinity_outliers_below)
+
+        # above_proxy  = Rectangle((0, 0), 1, 1, edgecolor=above_color,  facecolor=above_color)
+        # below_proxy = Rectangle((0, 0), 1, 1, edgecolor=below_color, facecolor=below_color)
+        # ax.legend(
+        #     [above_proxy, below_proxy],
+        #     [f"> +{outlier_bar}σ (count={count_above})",
+        #     f"< -{outlier_bar}σ (count={count_below})"],
+        #     loc="best"
+        # )
+
+        # ax.set_title('ROI with Atom Intensities & Statistical Anomalies')
+        ax.set_title('ROI with Atom Intensities')
+
+        sm = cm.ScalarMappable(norm=norm, cmap=cmap)
+        sm.set_array(patch_intensities)
+        cbar = fig.colorbar(sm, ax=ax, shrink=0.8)
+        cbar.set_label(metric+" patch intensity")
+
+        ax.set_xlabel('i (x, left to right)')
+        ax.set_ylabel('j (y, up to down)')
+        plt.tight_layout()
         plt.show()
+
+    #TODO: add plots for histograms of patch intensities
+
 
     def get_atom_positions(self, mask_size = 10, mask_std = 3, get_plot = False):
         """
@@ -280,7 +361,6 @@ class Crop(CropClassification):
         g1d = scipy.signal.windows.gaussian(mask_size, std=mask_std)   # 1D Gaussian
         kernel = np.outer(g1d, g1d)
 
-        
         atom_positions = {}
         for patch in self.grid.values():
             # Convolve patch image with circular kernel
@@ -367,6 +447,7 @@ class Crop(CropClassification):
             for y in self.horizontal_troughs:
                 ax.axhline(y-self.start, color='cyan', linestyle='--', linewidth=1)
         ax.scatter(positions_array[:,0], positions_array[:,1], s=4, c='r')
+        plt.tight_layout()
         plt.title("Atom Positions")
         plt.show()
 
@@ -376,6 +457,9 @@ class Crop(CropClassification):
         Determine atom types (Lu vs Fe) based on the mean intensity of each patch.
 
         Note: this is only for LuFeO3; not for generalization to other materials.
+        
+        TODO: imporve this method to fetch atom types info from simulation and match
+        with experimental images.
 
         Args:
             tol: Tolerance for determining if a layer is Lu or Fe based on intensity.
@@ -396,8 +480,7 @@ class Crop(CropClassification):
                 is_lu_layer[j] = True
 
         # Assign atom_type to each patch based on its layer
+        # TODO: generalize atom_type assignment
         for patch in self.grid.values():
             j = patch.index[1]
             patch.atom_type = 'Lu' if is_lu_layer[j] else 'Fe'
-
-

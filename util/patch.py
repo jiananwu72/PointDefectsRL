@@ -12,6 +12,25 @@ class Patch():
             index: A tuple (i, j) representing the position of the patch in the grid.
             col_edges: A list or array with 2 pixel index of column edges defining the patch boundaries.
             row_edges: A list or array with 2 pixel index of row edges defining the patch boundaries.
+
+        Attributes:
+            crop: The Crop object associated with this patch.
+            index: The (i, j) index of the patch in the grid.
+            col_edges: The column edges of the patch in the full image.
+            row_edges: The row edges of the patch in the full image.
+            roi_col_edges: The column edges of the patch relative to the crop ROI.
+            roi_row_edges: The row edges of the patch relative to the crop ROI.
+            width: The width of the patch in pixels.
+            height: The height of the patch in pixels.
+            image: The 2D numpy array representing the patch image data.
+            
+            sum_intensity: The sum of pixel intensities in the patch.
+            mean_intensity: The mean pixel intensity in the patch.
+            max_intensity: The maximum pixel intensity in the patch.
+            
+            atom_position: The (x, y) position of an atom in the full image (if any).
+            atom_position_roi: The (x, y) position of an atom relative to the crop ROI (if any).
+            atom_type: The type of atom present in the patch (if any).
         """
 
         self.crop = crop

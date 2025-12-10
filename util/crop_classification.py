@@ -7,12 +7,12 @@ from sklearn.ensemble import IsolationForest
 class CropClassification:
     def _get_intensity(self, atom, metric):
         """
-        Return the requested intensity for an atom.
-
+        A Wrapper to return the requested intensity for an atom.
+        
         Args:
             atom: An atom object containing intensity attributes.
             metric: A string specifying which intensity to return. One of:
-                'mean' | 'max' | 'sum' | 'eels_Fe' | 'eels_Lu'
+                'mean' | 'max' | 'sum' 
         """
 
         if isinstance(metric, str):
@@ -20,129 +20,114 @@ class CropClassification:
                 'mean': 'mean_intensity',
                 'max' : 'max_intensity',
                 'sum' : 'sum_intensity',
-
-                'eels_Fe': 'integrated_intensity_Fe',
-                'eels_Lu': 'integrated_intensity_Lu',
             }
             if metric not in attr_map:
                 raise ValueError(f"Unknown intensity metric: {metric!r}.")
             return float(getattr(atom, attr_map[metric]))
         
         raise TypeError("Unknown intensity metric.")
-
-    def get_nn_intensities_same(self, number_of_atoms_from_edge = 2,
-                                horizonal_radius = 2, vertical_radius = 2, metric = 'mean'):
+    
+    def _get_position(self, atom):
         """
-        Get nearest neighbor intensity for same types of atoms.
-        Will not count atoms of different types inside the radius.
-
-        Args:
-            number_of_atoms_from_edge: number of atoms that will avoid counting from the edge and will be labeled None.
-            horizontal_radius: number of atoms to be considered around in the grid horizontally, default = 2.
-            vertical_radius: number of atoms to be considered around in the grid vertically, default = 2.
-            metric: A string specifying which intensity to use. One of:
-                'mean' | 'max' | 'sum' | 'eels_Fe' | 'eels_Lu'
-        """
-        for patch in self.grid.values():
-            # Get rid of edge atoms
-            if patch.index[0] < number_of_atoms_from_edge or patch.index[0] >= self.grid_shape[0] - number_of_atoms_from_edge:
-                patch.nn_same_atom_intensity_differences = None
-                continue
-            if patch.index[1] < number_of_atoms_from_edge or patch.index[1] >= self.grid_shape[1] - number_of_atoms_from_edge:
-                patch.nn_same_atom_intensity_differences = None
-                continue
-
-            i = patch.index[0]
-            j = patch.index[1]
-
-            center_intensity = self._get_intensity(patch, metric)
-            center_type = getattr(patch, 'atom_type', None)
-            same_cols = []
-            for di in range(-horizonal_radius, horizonal_radius + 1):
-                col = []
-                for dj in range(-vertical_radius, vertical_radius + 1):
-                    ni, nj = i + di, j + dj
-                    try:
-                        neigh = self.grid[ni, nj]
-                        if getattr(neigh, 'atom_type', None) == center_type:
-                            col.append(self._get_intensity(neigh, metric))
-                        else:
-                            col.append(np.nan)  # keep shape; not same type
-                    except KeyError:
-                        col.append(np.nan)      # out of bounds
-                same_cols.append(col)
-            same_atom_intensities = np.array(same_cols, dtype=float)
-            patch.nn_same_atom_intensity_differences = center_intensity - same_atom_intensities
-
-    def get_nn_intensities_all(self, number_of_atoms_from_edge = 2,
-                                horizonal_radius = 1, vertical_radius = 1, metric = 'mean'):
-        """
-        Get nearest neighbor intensity for all types of atoms.
+        A Wrapper to return the requested position for an atom.
         
         Args:
-            number_of_atoms_from_edge: number of atoms that will avoid counting from the edge and will be labeled None.
-            horizontal_radius: number of atoms to be considered around in the grid horizontally, default = 1.
-            vertical_radius: number of atoms to be considered around in the grid vertically, default = 1.
-            metric: A string specifying which intensity to use. One of:
-                'mean' | 'max' | 'sum' | 'eels_Fe' | 'eels_Lu'
+            atom: An atom object containing position attributes.
         """
-        for patch in self.grid.values():
-            # Get rid of edge atoms
-            if patch.index[0] < number_of_atoms_from_edge or patch.index[0] >= self.grid_shape[0] - number_of_atoms_from_edge:
-                patch.nn_all_atom_intensity_differences = None
-                continue
-            if patch.index[1] < number_of_atoms_from_edge or patch.index[1] >= self.grid_shape[1] - number_of_atoms_from_edge:
-                patch.nn_all_atom_intensity_differences = None
-                continue
 
-            i = patch.index[0]
-            j = patch.index[1]
+        return atom.atom_position_roi
 
-            center_intensity = self._get_intensity(patch, metric)
-            cols = []
-            for di in range(-horizonal_radius, horizonal_radius + 1):
-                col = []
-                for dj in range(-vertical_radius, vertical_radius + 1):
-                    ni, nj = i + di, j + dj
-                    try:
-                        neigh = self.grid[ni, nj]
-                        col.append(self._get_intensity(neigh, metric))
-                    except KeyError:
-                        col.append(np.nan)      # out of bounds
-                cols.append(col)
-            atom_intensities = np.array(cols, dtype=float)
-            patch.nn_all_atom_intensity_differences = center_intensity - atom_intensities
+    # Bayes Prediction:
+    # P(d_j|M) = P(M|d_j)P(d_j)/Sum_i(P(M|d_i)P(d_i))
+    # P(d|M) = Sum_i(P(d_i|M))
+    # P(M|d_i) = Product_k(P(M_k|d_i))
+    #
+    # Parameters:
+    # d = defect existance
+    # d_i = defect existance at layer i
+    # M = combined measured features
+    # M_i = measured features i (e.g. intensity, displacement)
 
-    def get_nn_displacements(self, number_of_atoms_from_edge = 2):
+    # Features construction
+
+    def get_nn_intensities(self, metric = 'mean'):
         """
-        Get nearest neighbor displacements for all types of atoms.
-        
+        Get nearest neighbor intensity differences from up, down, left, and right. 
+        Please override this method if you want a different construction.
+
         Args:
-            number_of_atoms_from_edge: number of atoms that will avoid counting from the edge of roi
-                and will be labeled None.
+            metric: A string specifying which intensity to use. One of:
+                'mean' | 'max' | 'sum' 
+
+        Results:
+            patch.nn_intensity_differences: np.ndarray of shape (4,) representing the intensity differences with
+                [up, down, left, right] neighbors.
+
         """
+        H, W = self.grid_shape
+        # Neighboring atoms: up, down, left, right
+        dis = [0, 0, -1, 1]
+        djs = [-1, 1, 0, 0]
+        neighbor_offsets = list(zip(dis, djs))
+
         for patch in self.grid.values():
-            # Get rid of edge atoms
-            if patch.index[0] < number_of_atoms_from_edge or patch.index[0] >= self.grid_shape[0] - number_of_atoms_from_edge:
-                patch.nn_displacements = None
+            i, j = patch.index
+
+            # Pre-calculate neighbor coordinates
+            neighbors = [(i + di, j + dj) for di, dj in neighbor_offsets]
+
+            # Check if ANY neighbor is out of bounds
+            if any(not (0 <= ni < H and 0 <= nj < W) for ni, nj in neighbors):
+                patch.nn_intensity_differences = None
                 continue
-            if patch.index[1] < number_of_atoms_from_edge or patch.index[1] >= self.grid_shape[1] - number_of_atoms_from_edge:
-                patch.nn_displacements = None
+
+            # Calculate
+            current_intensity = self._get_intensity(patch, metric)
+            patch.nn_intensity_differences = np.array([
+                self._get_intensity(self.grid[ni, nj], metric) - current_intensity
+                for ni, nj in neighbors
+            ])
+
+        return None
+
+    def get_nn_displacements(self):
+        """
+        Get nearest neighbor intensity differences from up, down, left, and right. 
+        Please override this method if you want a different construction.
+
+        Results:
+            patch.nn_intensity_differences: np.ndarray of shape (4,) representing the intensity differences with
+                [up, down, left, right] neighbors.
+        """
+        H, W = self.grid_shape
+        # Neighboring atoms: up, down, left, right
+        dis = [0, 0, -1, 1]
+        djs = [-1, 1, 0, 0]
+        neighbor_offsets = list(zip(dis, djs))
+
+        for patch in self.grid.values():
+            i, j = patch.index
+
+            # Pre-calculate neighbor coordinates
+            neighbors = [(i + di, j + dj) for di, dj in neighbor_offsets]
+
+            # Check if ANY neighbor is out of bounds
+            if any(not (0 <= ni < H and 0 <= nj < W) for ni, nj in neighbors):
+                patch.nn_displacement_differences = None
                 continue
 
-            i = patch.index[0]
-            j = patch.index[1]
+            # Calculate
+            current_position = self._get_position(patch)
+            patch.nn_displacement_differences = np.array([
+                self._get_position(self.grid[ni, nj]) - current_position
+                for ni, nj in neighbors
+            ])
 
-            # Displacement differences for 9 atoms around
-            current_position = patch.atom_position_roi
-            dis = (-1, 0, 1)
-            djs = (-1, 0, 1)
-            patch.nn_displacements = np.array([
-                [np.linalg.norm(self.grid[i+di, j+dj].atom_position_roi-current_position)
-                                for dj in djs] for di in dis])
-            
+        return None
 
-    # Finding intensity outliers by checking z_scores
+
+    # Legacy Methods for Outlier Detection. Could be used as references.
+    # TODO: organize these methods.
     def get_intensity_z_score_outliers(self, outlier_bar = 2, atom_type = 'Lu', atom_selection = 'same'):
         """
         Find the outliers by looking at mean intensity differences.
@@ -175,103 +160,7 @@ class CropClassification:
         self.intensity_from_vincinity_outliers_above = [indices[idx] for idx, z in enumerate(z_scores) if z > outlier_bar]  # threshold z > bar
         self.intensity_from_vincinity_outliers_below = [indices[idx] for idx, z in enumerate(z_scores) if z < -outlier_bar] # threshold z < -bar
 
-    # Finding outliers using Isolation Forest
-    def get_intensity_outliers_isoforest(self, contamination=0.05, random_state=0, atom_selection = 'same', atom_type = 'Lu'):
-        """
-        Detect outliers among atoms using Isolation Forest on the vector
-        from nn_same_atom_intensity_differences. Also classify
-        outliers as 'too high' or 'too low' based on the mean of that array.
 
-        Writes:
-        - self.iforest_anomaly_score : np.ndarray (aligned to collected indices)
-        - self.iforest_outliers      : list[(i,j)]
-        - self.iforest_outliers_high : list[(i,j)]  # mean above median -> "too high"
-        - self.iforest_outliers_low  : list[(i,j)]  # mean below median -> "too low"
-        - self.iforest_indices       : list[(i,j)]  # order matches scores
-        - self.iforest_feature_medians: np.ndarray (K,) used to fill NaNs
-        Returns:
-        dict with keys: indices, scores, outliers, outliers_high, outliers_low
-        """
-        # 1) collect patches with valid same-diff arrays
-        indices = []
-        rows = []
-        means_1d = []   # store mean of K elements for later "high/low" classification (before imputation)
-        for (i, j), patch in self.grid.items():
-            arr = None
-            if atom_selection == 'same':
-                if patch.atom_type == atom_type or atom_type == 'all':
-                    arr = patch.nn_same_atom_intensity_differences
-            elif atom_selection == 'all':
-                arr = patch.nn_all_atom_intensity_differences
-            
-            if arr is not None:
-                arr = np.asarray(arr, dtype=float)
-                indices.append((i, j))
-                rows.append(arr.reshape(-1))                 # K-D
-                means_1d.append(np.nanmean(arr))             # NaN-safe mean for direction
-
-        X = np.vstack(rows)          # (N, K)
-        means_1d = np.asarray(means_1d, dtype=float)
-
-        # 2) feature-wise median imputation for NaNs (keeps each feature’s typical scale)
-        feat_medians = np.nanmedian(X, axis=0)
-        nan_mask = ~np.isfinite(X)
-        if np.any(nan_mask):
-            X = np.where(nan_mask, feat_medians, X)
-
-        # 3) Isolation Forest fit (higher decision_function = more normal)
-        iso = IsolationForest(
-            n_estimators=100,
-            max_samples='auto',
-            contamination=contamination,
-            random_state=random_state,
-            n_jobs=-1
-        ).fit(X)
-
-        decision = iso.decision_function(X)   # higher => more normal
-        anomaly_score = -decision             # higher => more anomalous (convenient)
-
-        # label: -1 for outliers
-        labels = iso.predict(X)
-        outlier_mask = (labels == -1)
-
-        # 4) Classify outliers as "too high" vs "too low"
-        #    Use robust center of the per-patch mean (median).
-        center = np.nanmedian(means_1d)
-        high_mask = outlier_mask & (means_1d >= center)
-        low_mask  = outlier_mask & (means_1d <  center)
-
-        outliers       = [indices[k] for k in np.where(outlier_mask)[0]]
-        outliers_high  = [indices[k] for k in np.where(high_mask)[0]]
-        outliers_low   = [indices[k] for k in np.where(low_mask)[0]]
-
-        # 5) persist for later inspection/plotting
-        self.iforest_anomaly_score = anomaly_score
-        self.iforest_outliers = outliers
-        self.iforest_outliers_high = outliers_high
-        self.iforest_outliers_low = outliers_low
-        self.iforest_indices = indices
-        self.iforest_feature_medians = feat_medians
-
-        # Optionally, write flags back to each patch
-        for (idx, (i, j)) in enumerate(indices):
-            patch = self.grid[i, j]
-            patch.iforest_anomaly_score = float(anomaly_score[idx])
-            patch.iforest_is_outlier = bool(outlier_mask[idx])
-            if high_mask[idx]:
-                patch.iforest_direction = 'high'
-            elif low_mask[idx]:
-                patch.iforest_direction = 'low'
-            else:
-                patch.iforest_direction = 'inlier'
-
-        return {
-            "indices": indices,
-            "scores": anomaly_score,
-            "outliers": outliers,
-            "outliers_high": outliers_high,
-            "outliers_low": outliers_low
-        }
 
             
     # Plotting
