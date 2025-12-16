@@ -23,8 +23,8 @@ RUN wget --quiet https://github.com/conda-forge/miniforge/releases/latest/downlo
     rm ~/miniforge.sh && \
     /opt/conda/bin/conda clean -afy && \
     ln -s /opt/conda/etc/profile.d/conda.sh /etc/profile.d/conda.sh && \
-    echo ". /opt/conda/etc/profile.d/conda.sh" >> ~/.bashrc && \
-    echo "conda activate base" >> ~/.bashrc
+    echo ". /opt/conda/etc/profile.d/conda.sh" >> /etc/bash.bashrc && \
+    echo "conda activate base" >> /etc/bash.bashrc
 
 ENV TINI_VERSION=v0.16.1
 ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /usr/bin/tini
@@ -39,3 +39,5 @@ ENV PATH=/opt/conda/envs/apdd/bin:$PATH
 
 ENTRYPOINT [ "/usr/bin/tini", "--" ]
 CMD [ "/bin/bash" ]
+
+
