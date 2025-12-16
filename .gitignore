@@ -3,3 +3,6 @@ data/images/
 
 # Drafts playbook
 script.ipynb
+
+# Ignore system files
+.DS_Store
