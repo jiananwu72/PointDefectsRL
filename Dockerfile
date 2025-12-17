@@ -24,7 +24,7 @@ RUN wget --quiet https://github.com/conda-forge/miniforge/releases/latest/downlo
     /opt/conda/bin/conda clean -afy && \
     ln -s /opt/conda/etc/profile.d/conda.sh /etc/profile.d/conda.sh && \
     echo ". /opt/conda/etc/profile.d/conda.sh" >> /etc/bash.bashrc && \
-    echo "conda activate base" >> /etc/bash.bashrc \
+    echo "conda activate base" >> /etc/bash.bashrc && \
     echo "export HOME=/tmp" >> /etc/bash.bashrc
 
 ENV TINI_VERSION=v0.16.1
