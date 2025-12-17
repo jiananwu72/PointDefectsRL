@@ -40,5 +40,3 @@ ENV PATH=/opt/conda/envs/apdd/bin:$PATH
 
 ENTRYPOINT [ "/usr/bin/tini", "--" ]
 CMD [ "/bin/bash" ]
-
-

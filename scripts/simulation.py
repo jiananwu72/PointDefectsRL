@@ -4,7 +4,7 @@ import ase.io
 import numpy as np
 import matplotlib.pyplot as plt
 import abtem
-import tqdm
+from tqdm import tqdm
 
 import sys
 from pathlib import Path
