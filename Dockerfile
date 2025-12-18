@@ -2,7 +2,7 @@
 #     docker build --platform linux/amd64 -t jiananwu72/miniconda-cupy:latest .
 # To run the docker image, use jiananwu72/miniconda-cupy:latest.
 
-# In WashU RIS, use: bsub -Is -q general-interactive -a 'docker(jiananwu72/miniconda-cupy)' /bin/bash
+# In WashU RIS, use: bsub -Is -q general-interactive -R 'gpuhost' -gpu "num=1" -a "docker(jiananwu72/miniconda-cupy)" /bin/bash
 
 # For simulations on a machine with NVIDIA GPU support
 FROM nvidia/cuda:12.4.1-runtime-ubuntu22.04
@@ -34,8 +34,10 @@ RUN chmod +x /usr/bin/tini
 # Install packages from environment.yml and CuPy for CUDA 12.x
 COPY environment.yml /tmp/environment.yml
 RUN conda env create -f /tmp/environment.yml
+RUN conda run -n apdd conda install -y -c nvidia cuda-nvcc cuda-libraries-dev
 RUN conda run -n apdd pip install --no-cache-dir \
     cupy-cuda12x
+
 ENV LD_LIBRARY_PATH=/usr/local/cuda-12.4/compat:$LD_LIBRARY_PATH
 ENV PATH=/opt/conda/envs/apdd/bin:$PATH
 
