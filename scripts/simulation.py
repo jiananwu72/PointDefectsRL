@@ -24,8 +24,8 @@ save_dir = project_root / 'data' / 'simulations'
 abtem.config.set({"device": "gpu", "fft": "fftw"})
 
 sweep_configs = {
-    'energy': [100e3, 300e3],      # eV
-    'Cs': [0, 5.6e4],              # in Angstroms
+    'energy': [300e3],      # eV
+    'Cs': [5.6e4],              # in Angstroms
     'layers': [10],     # number of layers along z
     'semiangle_cutoff': [15, 22, 30, None],      # in milliradians
 }
@@ -37,7 +37,7 @@ def run_simulation(unit_cell, energy, Cs, layers, semiangle_cutoff):
     print(f"Running simulation with energy={energy/1e3}keV, Cs={Cs}Å, layers={layers}, semiangle_cutoff={semiangle_cutoff}mrad")
     atoms = unit_cell * (2, 2, layers)  # Repeat unit cell along z
     frozen_phonons = abtem.FrozenPhonons(atoms, num_configs=10, sigmas=0.1)
-    potential = abtem.Potential(frozen_phonons, sampling=0.05, plane='xy')
+    potential = abtem.Potential(frozen_phonons, sampling=0.03, plane='xy')
     probe = abtem.Probe(
         energy=energy, 
         semiangle_cutoff=semiangle_cutoff, 
