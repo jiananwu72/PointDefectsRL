@@ -18,16 +18,16 @@ from util.crop import Crop
 # Load structure; cif_path will be edited to load from command line
 cif_path = project_root / 'data' / 'structures' / 'LFO_Orth.cif'
 unit_cell = ase.io.read(cif_path)
-save_dir = project_root / 'data' / 'simulations'
+save_dir = project_root / 'data' / 'simulations' / 'tests2'
 
 # Set simulation on GPU
 abtem.config.set({"device": "gpu", "fft": "fftw"})
 
 sweep_configs = {
-    'energy': [300e3],      # eV
+    'energy': [100e3, 300e3],      # eV
     'Cs': [5.6e4],              # in Angstroms
-    'layers': [10],     # number of layers along z
-    'semiangle_cutoff': [15, 22, 30, None],      # in milliradians
+    'layers': [10, 50],     # number of layers along z
+    'semiangle_cutoff': [30],      # in milliradians
 }
 
 def run_simulation(unit_cell, energy, Cs, layers, semiangle_cutoff):
