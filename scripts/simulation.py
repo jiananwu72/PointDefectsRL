@@ -18,23 +18,25 @@ from util.crop import Crop
 # Load structure; cif_path will be edited to load from command line
 cif_path = project_root / 'data' / 'structures' / 'LFO_Orth.cif'
 unit_cell = ase.io.read(cif_path)
-save_dir = project_root / 'data' / 'simulations' / 'tests2'
+save_dir = project_root / 'data' / 'simulations' / 'tests3'
 
 # Set simulation on GPU
 abtem.config.set({"device": "gpu", "fft": "fftw"})
 
 sweep_configs = {
-    'energy': [100e3, 300e3],      # eV
-    'Cs': [5.6e4],              # in Angstroms
-    'layers': [10, 50],     # number of layers along z
-    'semiangle_cutoff': [30],      # in milliradians
+    'energy': [100e3],      # eV
+    'Cs': [0, 5.6e4],              # in Angstroms
+    'layers': [40, 45, 50, 55, 60],     # number of layers along z
+    'semiangle_cutoff': [15, 22, 30],      # in milliradians
+    'defocus': [0, 10, 20],               # in Angstroms
 }
 
-def run_simulation(unit_cell, energy, Cs, layers, semiangle_cutoff):
+def run_simulation(unit_cell, energy, Cs, layers, semiangle_cutoff, defocus):
     """
     Runs a single abtem simulation with specific parameters.
     """
-    print(f"Running simulation with energy={energy/1e3}keV, Cs={Cs}Å, layers={layers}, semiangle_cutoff={semiangle_cutoff}mrad")
+    print(f"Running simulation with energy={energy/1e3}keV, Cs={Cs}Å, layers={layers}, \
+          semiangle_cutoff={semiangle_cutoff}mrad, defocus={defocus}Å")
     atoms = unit_cell * (2, 2, layers)  # Repeat unit cell along z
     frozen_phonons = abtem.FrozenPhonons(atoms, num_configs=10, sigmas=0.1)
     potential = abtem.Potential(frozen_phonons, sampling=0.03, plane='xy')
@@ -42,7 +44,7 @@ def run_simulation(unit_cell, energy, Cs, layers, semiangle_cutoff):
         energy=energy, 
         semiangle_cutoff=semiangle_cutoff, 
         Cs=Cs, 
-        defocus=0
+        defocus=defocus
     )
     probe.grid.match(potential)
 
@@ -58,13 +60,13 @@ def run_simulation(unit_cell, energy, Cs, layers, semiangle_cutoff):
     flexible_measurement = probe.scan(potential, scan=grid_scan, detectors=detector)
     flexible_measurement.compute()
     
-    haadf = flexible_measurement.integrate_radial(90, 200)
+    haadf = flexible_measurement.integrate_radial(80, 200)
     interpolated = haadf.interpolate(0.05)
     filtered = interpolated.gaussian_filter(0.3)
     noisy = filtered.poisson_noise(dose_per_area=1e7)
 
     output = noisy.array.T
-    filename = f"noisy_E{energy/1000:.0f}keV_Cs{Cs:.1e}_Layers{layers}_Cutoff{semiangle_cutoff}mrad.npy"
+    filename = f"noisy_E{energy/1000:.0f}keV_Cs{Cs:.1e}_Layers{layers}_Cutoff{semiangle_cutoff}mrad_Defocus{defocus}.npy"
     save_path = save_dir / filename
     np.save(save_path, output)
 
