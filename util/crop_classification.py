@@ -96,7 +96,7 @@ class CropClassification:
         Please override this method if you want a different construction.
 
         Results:
-            patch.nn_intensity_differences: np.ndarray of shape (4,) representing the intensity differences with
+            patch.nn_displacement_differences: np.ndarray of shape (4,) representing the intensity differences with
                 [up, down, left, right] neighbors.
         """
         H, W = self.grid_shape
