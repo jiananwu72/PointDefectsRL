@@ -22,13 +22,13 @@ plain_cif_path = project_root / 'data' / 'structures' / 'LFO_Orth2.cif'
 defect_cif_path = project_root / 'data' / 'structures' / f'LFO_Orth_{batch}.cif'
 layer_plain = ase.io.read(plain_cif_path)
 layer_defect = ase.io.read(defect_cif_path)
-save_dir = project_root / 'data' / 'simulations' / f'test_{batch}'
+save_dir = project_root / 'data' / 'simulations' / f'test_{batch}2'
 save_dir.mkdir(parents=True, exist_ok=True)
 
 # Set simulation on GPU
 abtem.config.set({"device": "gpu", "fft": "fftw"})
 
-layers = 40 # total number of layers in the simulation
+layers = 10 # total number of layers in the simulation
 energy = 100e3  # eV
 Cs = 0          # in Angstroms
 semiangle_cutoff = 30  # in milliradians
