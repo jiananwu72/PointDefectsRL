@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 import scipy.stats as stats
 from matplotlib.patches import Rectangle
 from sklearn.ensemble import IsolationForest
+import matplotlib.colors as mcolors
+from matplotlib import cm
 
 class CropClassification:
     def _get_intensity(self, atom, metric):
@@ -50,6 +52,27 @@ class CropClassification:
 
     # Features construction
 
+    def set_nn_coords(self, dis=None, djs=None):
+        """
+        Set nearest neighbor matrix offsets to dis and djs.
+        dis and djs should have the same length.
+        dis represents row offsets, and djs represents column offsets.
+        e.g. left neighbor: di = -1, dj = 0
+        e.g. up neighbor: di = 0, dj = -1
+
+        Args:
+            dis: List of row offsets. Default: [0, 0, -1, 1]
+            djs: List of column offsets. Default: [-1, 1, 0, 0]
+        """
+        if dis is None or djs is None:
+            self.dis = [0, 0, -1, 1]
+            self.djs = [-1, 1, 0, 0]
+            return
+        if len(dis) != len(djs):
+            raise ValueError("dis and djs must have the same length.")
+        self.dis = dis
+        self.djs = djs
+
     def get_nn_intensities(self, metric = 'mean'):
         """
         Get nearest neighbor intensity differences from up, down, left, and right. 
@@ -60,14 +83,14 @@ class CropClassification:
                 'mean' | 'max' | 'sum' 
 
         Results:
-            patch.nn_intensity_differences: np.ndarray of shape (4,) representing the intensity differences with
-                [up, down, left, right] neighbors.
+            patch.nn_intensity_differences: np.ndarray of shape (n,) representing the intensity differences 
+                of the vincinity. Default with [up, down, left, right] neighbors.
 
         """
         H, W = self.grid_shape
         # Neighboring atoms: up, down, left, right
-        dis = [0, 0, -1, 1]
-        djs = [-1, 1, 0, 0]
+        dis = self.dis if hasattr(self, 'dis') else [0, 0, -1, 1]
+        djs = self.djs if hasattr(self, 'djs') else [-1, 1, 0, 0]
         neighbor_offsets = list(zip(dis, djs))
 
         for patch in self.grid.values():
@@ -96,13 +119,13 @@ class CropClassification:
         Please override this method if you want a different construction.
 
         Results:
-            patch.nn_displacement_differences: np.ndarray of shape (4,) representing the intensity differences with
-                [up, down, left, right] neighbors.
+            patch.nn_displacement_differences: np.ndarray of shape (n,) representing the displacement differences 
+                of the vincinity. Default with [up, down, left, right] neighbors.
         """
         H, W = self.grid_shape
         # Neighboring atoms: up, down, left, right
-        dis = [0, 0, -1, 1]
-        djs = [-1, 1, 0, 0]
+        dis = self.dis if hasattr(self, 'dis') else [0, 0, -1, 1]
+        djs = self.djs if hasattr(self, 'djs') else [-1, 1, 0, 0]
         neighbor_offsets = list(zip(dis, djs))
 
         for patch in self.grid.values():
@@ -128,24 +151,21 @@ class CropClassification:
 
     # Legacy Methods for Outlier Detection. Could be used as references.
     # TODO: organize these methods.
-    def get_intensity_z_score_outliers(self, outlier_bar = 2, atom_type = 'Lu', atom_selection = 'same'):
+    def get_intensity_z_score_outliers(self, outlier_bar = 2, atom_type = 'Lu'):
         """
         Find the outliers by looking at mean intensity differences.
 
         Args:
             outlier_bar: z values
             atom_type: 'Lu', 'Fe', or 'all'
-            atom_selection: 'same' or 'all'
         """
         means = []
         indices = []
 
         for patch in self.grid.values():
             if patch.atom_type == atom_type or atom_type == 'all':
-                if atom_selection == 'same' and patch.nn_same_atom_intensity_differences is not None:
-                    mean_val = np.nanmean(patch.nn_same_atom_intensity_differences)
-                elif atom_selection == 'all' and patch.nn_all_atom_intensity_differences is not None:
-                    mean_val = np.nanmean(patch.nn_all_atom_intensity_differences)
+                if patch.nn_intensity_differences is not None:
+                    mean_val = np.nanmean(patch.nn_intensity_differences)
                 else:
                     continue
                 means.append(mean_val)
@@ -157,6 +177,7 @@ class CropClassification:
         # Find outliers using z-score method
         z_scores = (means - np.mean(means)) / np.std(means)
         self.intensity_from_vincinity_z_scores = z_scores
+        self.intensity_from_vincinity_indices = indices
         self.intensity_from_vincinity_outliers_above = [indices[idx] for idx, z in enumerate(z_scores) if z > outlier_bar]  # threshold z > bar
         self.intensity_from_vincinity_outliers_below = [indices[idx] for idx, z in enumerate(z_scores) if z < -outlier_bar] # threshold z < -bar
 
@@ -234,5 +255,49 @@ class CropClassification:
         ax.legend([above_proxy, below_proxy], [f"> +{outlier_bar}σ", f"< -{outlier_bar}σ"], loc="best")
 
         ax.set_title('ROI with Outlier Atoms (boxes & centers)')
+        plt.tight_layout()
+        plt.show()
+
+    def plot_intensity_z_score_heatmap(self):
+        plt.close()
+        fig, ax = plt.subplots(figsize=(10, 10))
+        
+        # Display the base image
+        im = ax.imshow(self.roi, cmap='gray')
+        
+        # 1. Setup Normalization: Centers the colormap at 0 (the mean)
+        # Adjust vmin/vmax to control the sensitivity of the colors
+        abs_max = np.max(np.abs(self.intensity_from_vincinity_z_scores))
+        norm = mcolors.TwoSlopeNorm(vcenter=0, vmin=-abs_max, vmax=abs_max)
+        colormap = cm.get_cmap('RdBu_r') # Red (low) to Blue (high)
+
+        def _get_edges(patch):
+            x0, x1 = map(float, patch.roi_col_edges)
+            y0, y1 = map(float, patch.roi_row_edges)
+            return x0, x1, y0, y1
+
+        # 2. Iterate through the entire grid
+        for idx, (i, j) in enumerate(self.intensity_from_vincinity_indices):
+            patch = self.grid[i, j]
+            score = self.intensity_from_vincinity_z_scores[idx]
+            
+            x0, x1, y0, y1 = _get_edges(patch)
+            color = colormap(norm(score))
+
+            # Draw box with a slight transparency (alpha) to see the ROI underneath
+            rect = Rectangle((x0, y0), x1 - x0, y1 - y0, 
+                            edgecolor=color, 
+                            facecolor=color, 
+                            alpha=0.3, 
+                            lw=1.5)
+            ax.add_patch(rect)
+
+        # 3. Add Colorbar to explain the sigmas
+        sm = plt.cm.ScalarMappable(cmap=colormap, norm=norm)
+        sm.set_array([])
+        cbar = fig.colorbar(sm, ax=ax, fraction=0.046, pad=0.04)
+        cbar.set_label('Z-Score (σ from mean)', rotation=270, labelpad=15)
+
+        ax.set_title('ROI Overlay: Intensity Z-Scores')
         plt.tight_layout()
         plt.show()
