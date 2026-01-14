@@ -11,4 +11,4 @@ export HOME=/tmp
 export CUDA_PATH=/opt/conda/envs/apdd
 export CPATH=$CUDA_PATH/include:$CPATH
 
-/opt/conda/envs/apdd/bin/python scripts/test_VFe.py
+/opt/conda/envs/apdd/bin/python scripts/simulation.py

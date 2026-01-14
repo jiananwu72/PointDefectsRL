@@ -27,10 +27,28 @@ abtem.config.set({"device": "gpu", "fft": "fftw"})
 sweep_configs = {
     'energy': [100e3],      # eV
     'Cs': [0],              # in Angstroms
-    'layers': [35, 40, 45, 50],     # number of layers along z
+    'layers': [55, 60],     # number of layers along z
     'semiangle_cutoff': [20, 25, 30, 35],      # in milliradians
     'defocus': [10, 20, 30, 40, 50, 60, 70, 80, 90, 100],               # in Angstroms
 }
+
+# for references
+
+# sweep_configs = {
+#     'energy': [100e3],      # eV
+#     'Cs': [0],              # in Angstroms
+#     'layers': [35, 40, 45, 50],     # number of layers along z
+#     'semiangle_cutoff': [20, 25, 30, 35],      # in milliradians
+#     'defocus': [10, 20, 30, 40, 50, 60, 70, 80, 90, 100],               # in Angstroms
+# }
+
+# sweep_configs = {
+#     'energy': [100e3],      # eV
+#     'Cs': [0],              # in Angstroms
+#     'layers': [35, 40, 45, 50, 55, 60],     # number of layers along z
+#     'semiangle_cutoff': [20, 25, 30, 35],      # in milliradians
+#     'defocus': [10, 20, 30, 40, 50, 60, 70, 80, 90, 100],               # in Angstroms
+# }
 
 def run_simulation(unit_cell, energy, Cs, layers, semiangle_cutoff, defocus):
     """
