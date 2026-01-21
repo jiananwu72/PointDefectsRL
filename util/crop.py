@@ -191,8 +191,8 @@ class Crop(CropClassification, CropSimulation):
         # Overlay grid lines at detected peaks
         for x in self.vertical_peaks:
             ax.axvline(x-self.left, color='magenta', linestyle='--', linewidth=1)
-        for y in self.horizontal_peaks:
-            ax.axhline(y-self.start, color='cyan', linestyle='--', linewidth=1)
+        # for y in self.horizontal_peaks:
+        #     ax.axhline(y-self.start, color='cyan', linestyle='--', linewidth=1)
 
         ax.set_title('ROI with Detected Grid (Peaks)')
         plt.tight_layout()
@@ -430,6 +430,8 @@ class Crop(CropClassification, CropSimulation):
             ax.scatter(positions_array[:,0], positions_array[:,1], s=4, c='r')
             plt.title("Refined Atom Positions with Troughs")
             plt.show()
+
+    # def get_position_intensities(self, )
     
     def plot_positions(self, show_troughs = False):
         """
@@ -447,7 +449,7 @@ class Crop(CropClassification, CropSimulation):
                 ax.axvline(x-self.left, color='magenta', linestyle='--', linewidth=1)
             for y in self.horizontal_troughs:
                 ax.axhline(y-self.start, color='cyan', linestyle='--', linewidth=1)
-        ax.scatter(positions_array[:,0], positions_array[:,1], s=4, c='r')
+        ax.scatter(positions_array[:,0], positions_array[:,1], s=5, c='r')
         plt.tight_layout()
         plt.title("Atom Positions")
         plt.show()

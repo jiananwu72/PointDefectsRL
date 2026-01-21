@@ -107,7 +107,7 @@ class CropSimulation:
         """
         
         vertical_line_peaks = []
-        if self.filtered_vertical_lines is None:
+        if not hasattr(self, 'filtered_vertical_lines') or self.filtered_vertical_lines is None:
             vertical_lines = self.vertical_lines
         else:
             vertical_lines = self.filtered_vertical_lines

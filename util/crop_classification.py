@@ -24,7 +24,11 @@ class CropClassification:
                 'sum' : 'sum_intensity',
             }
             if metric not in attr_map:
-                raise ValueError(f"Unknown intensity metric: {metric!r}.")
+                if getattr(atom, metric) is None:
+                    raise ValueError(f"Unknown intensity metric: {metric!r}.")
+                else:
+                    # print(f"Warning: not a default metric: {metric!r}. Attempting to access attribute directly.")
+                    return float(getattr(atom, metric))
             return float(getattr(atom, attr_map[metric]))
         
         raise TypeError("Unknown intensity metric.")
