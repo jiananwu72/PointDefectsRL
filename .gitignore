@@ -1,8 +1,10 @@
 # Ignore all images; too big for GitHub
 data/images/
+data/simulations1/
 
 # Drafts playbook
 script.ipynb
 
 # Ignore system files
 .DS_Store
+
